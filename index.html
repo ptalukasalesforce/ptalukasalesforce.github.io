@@ -1,168 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+    <link rel="stylesheet" href="style.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Splunk Query Helper</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; padding: 20px; background-color: #0d1117; color: white; }
-        .container { background: #161b22; padding: 2rem; border-radius: 12px; border: 1px solid #30363d; width: 100%; max-width: 550px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        h2 { color: #58a6ff; margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
-        label { font-size: 0.85rem; color: #8b949e; display: block; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
-        
-        input, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #30363d; border-radius: 6px; background-color: #0d1117; color: white; font-size: 1rem; outline: none; }
-        input:focus { border-color: #58a6ff; }
-        
-        .init-btn { width: 100%; padding: 12px; background-color: #1f6feb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; margin-bottom: 10px; }
-        .apply-btn { background-color: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; padding: 0 20px; height: 45px; }
-        .apply-btn:hover { background-color: #2ea043; }
-
-        .modifier-btn { background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 10px; flex: 1; cursor: pointer; border-radius: 6px; font-size: 0.9rem; }
-        .modifier-btn.active { background-color: #1f6feb; color: white; border-color: #58a6ff; }
-
-        .range-controls { display: none; margin-top: 10px; padding-top: 20px; border-top: 1px solid #30363d; }
-        .range-controls.show { display: block; }
-        .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px;}
-
-        #result-container { margin-top: 25px; background: #0d1117; border-radius: 8px; border: 1px solid #30363d; }
-        .panel-header { background: #161b22; padding: 8px 15px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; }
-        #result { padding: 20px; font-family: "SFMono-Regular", Consolas, monospace; color: #79c0ff; word-break: break-all; font-size: 1rem; }
-        #copyBtn { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
-        #copyBtn.success { background: #238636; color: white; }
-    </style>
 </head>
+
 <body>
+    <script src="script.js"></script>
+    <div class="container">
+        <h2>Splunk Time Formatter</h2>
 
-<div class="container">
-    <h2>Splunk Time Formatter</h2>
-    
-    <label>1. Paste Splunk Timestamp:</label>
-    <input type="text" id="tsInput" placeholder="4/19/26 11:19:21.304 PM">
-    <button class="init-btn" onclick="mainConvert()">Initialize Range Logic</button>
-    
-    <div class="range-controls" id="rangeControls">
-        <label>2. Events Before or After:</label>
-        <div class="flex-row">
-            <button class="modifier-btn" id="modBefore" onclick="setModifier('before')">Before</button>
-            <button class="modifier-btn" id="modAfter" onclick="setModifier('after')">After</button>
-            <button class="modifier-btn active" id="modPlusMinus" onclick="setModifier('plusMinus')">+/-</button>
+        <label>1. Paste Splunk Timestamp:</label>
+        <input type="text" id="tsInput" placeholder="4/19/26 11:19:21.304 PM">
+        <button class="init-btn" onclick="mainConvert()">Initialize Range Logic</button>
+
+        <div class="range-controls" id="rangeControls">
+            <label>2. Events Before or After:</label>
+            <div class="flex-row">
+                <button class="modifier-btn" id="modBefore" onclick="setModifier('before')">Before</button>
+                <button class="modifier-btn" id="modAfter" onclick="setModifier('after')">After</button>
+                <button class="modifier-btn active" id="modPlusMinus" onclick="setModifier('plusMinus')">+/-</button>
+            </div>
+
+            <label>3. Nearby Events Offset:</label>
+            <div class="flex-row">
+                <input type="number" id="offsetValue" value="1" style="margin:0; flex: 1;">
+                <select id="offsetUnit" style="margin:0; flex:1.5;" onchange="calculateRange()">
+                    <option value="m" selected>minute(s)</option>
+                    <option value="h">hour(s)</option>
+                    <option value="d">day(s)</option>
+                </select>
+                <button class="apply-btn" onclick="calculateRange()">Apply</button>
+            </div>
         </div>
 
-        <label>3. Nearby Events Offset:</label>
-        <div class="flex-row">
-            <input type="number" id="offsetValue" value="5" style="margin:0; flex: 1;">
-            <select id="offsetUnit" style="margin:0; flex: 1.5;">
-                <option value="s" selected>second(s)</option>
-                <option value="m">minute(s)</option>
-                <option value="h">hour(s)</option>
-            </select>
-            <button class="apply-btn" onclick="calculateRange()">Apply</button>
+        <div id="result-container" style="display:none;">
+            <div class="panel-header">
+                <span>Query Parameters</span>
+                <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
+            </div>
+            <div id="result"></div>
         </div>
     </div>
-
-    <div id="result-container" style="display:none;">
-        <div class="panel-header">
-            <span>Query Parameters</span>
-            <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
-        </div>
-        <div id="result"></div>
-    </div>
-</div>
-
-<script>
-    // Constants for precise millisecond math
-    const UNIT_S = 1000;
-    const UNIT_M = 60000;
-    const UNIT_H = 3600000;
-
-    const pad = (num) => num.toString().padStart(2, '0');
-    let currentModifier = 'plusMinus';
-
-    function formatSplunkDate(dateObj) {
-        if (isNaN(dateObj.getTime())) return null;
-        
-        const m = pad(dateObj.getMonth() + 1);
-        const d = pad(dateObj.getDate());
-        const y = dateObj.getFullYear();
-        const h = pad(dateObj.getHours());
-        const min = pad(dateObj.getMinutes());
-        
-        // We return :00 for seconds as per your initial requirement
-        return `${m}/${d}/${y}:${h}:${min}:00`;
-    }
-
-    function setModifier(mod) {
-        currentModifier = mod;
-        document.querySelectorAll('.modifier-btn').forEach(btn => btn.classList.remove('active'));
-        document.getElementById('mod' + mod.charAt(0).toUpperCase() + mod.slice(1)).classList.add('active');
-        calculateRange(); 
-    }
-
-    function mainConvert() {
-        const input = document.getElementById('tsInput').value.trim();
-        const testDate = new Date(input);
-        
-        if (!isNaN(testDate.getTime())) {
-            document.getElementById('rangeControls').classList.add('show');
-            calculateRange();
-        } else {
-            alert("Invalid format. Please use a format like: 4/19/26 11:19:21 PM");
-        }
-    }
-
-    function calculateRange() {
-        const input = document.getElementById('tsInput').value.trim();
-        // Create base date and strip milliseconds/seconds to ensure clean math from the start
-        const baseDate = new Date(input);
-        baseDate.setSeconds(0);
-        baseDate.setMilliseconds(0);
-
-        const offsetValue = parseFloat(document.getElementById('offsetValue').value) || 0;
-        const unit = document.getElementById('offsetUnit').value;
-        
-        // Calculate exact offset
-        let offsetMs = 0;
-        if (unit === 's') offsetMs = offsetValue * UNIT_S;
-        else if (unit === 'm') offsetMs = offsetValue * UNIT_M;
-        else if (unit === 'h') offsetMs = offsetValue * UNIT_H;
-
-        let earliestDate, latestDate;
-        const baseMs = baseDate.getTime();
-
-        // Apply Logic based on selected button
-        if (currentModifier === 'before') {
-            earliestDate = new Date(baseMs - offsetMs);
-            latestDate = baseDate;
-        } else if (currentModifier === 'after') {
-            earliestDate = baseDate;
-            latestDate = new Date(baseMs + offsetMs);
-        } else {
-            // plusMinus Logic
-            earliestDate = new Date(baseMs - offsetMs);
-            latestDate = new Date(baseMs + offsetMs);
-        }
-
-        const query = `earliest=${formatSplunkDate(earliestDate)} latest=${formatSplunkDate(latestDate)}`;
-        
-        document.getElementById('result-container').style.display = 'block';
-        document.getElementById('result').innerText = query;
-    }
-
-    async function copyToClipboard() {
-        const text = document.getElementById('result').innerText;
-        const btn = document.getElementById('copyBtn');
-        try {
-            await navigator.clipboard.writeText(text);
-            btn.innerText = "Copied!";
-            btn.classList.add('success');
-            setTimeout(() => {
-                btn.innerText = "Copy";
-                btn.classList.remove('success');
-            }, 2000);
-        } catch (err) {
-            console.error('Copy failed', err);
-        }
-    }
-</script>
 </body>
 </html>
