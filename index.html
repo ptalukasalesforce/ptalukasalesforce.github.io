@@ -3,23 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Splunk Query Helper - Fixed</title>
+    <title>Splunk Query Helper</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; padding: 20px; background-color: #0d1117; color: white; }
         .container { background: #161b22; padding: 2rem; border-radius: 12px; border: 1px solid #30363d; width: 100%; max-width: 550px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        h2 { color: #58a6ff; margin-top: 0; }
-        label { font-size: 0.9rem; color: #8b949e; display: block; margin-bottom: 5px; }
+        h2 { color: #58a6ff; margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+        label { font-size: 0.85rem; color: #8b949e; display: block; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
+        
         input, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #30363d; border-radius: 6px; background-color: #0d1117; color: white; font-size: 1rem; outline: none; }
-        .primary-btn { width: 100%; padding: 12px; background-color: #1f6feb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; }
-        .modifier-btn { background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 10px; flex: 1; cursor: pointer; border-radius: 6px; }
+        input:focus { border-color: #58a6ff; }
+        
+        .init-btn { width: 100%; padding: 12px; background-color: #1f6feb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; margin-bottom: 10px; }
+        .apply-btn { background-color: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; padding: 0 20px; height: 45px; }
+        .apply-btn:hover { background-color: #2ea043; }
+
+        .modifier-btn { background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 10px; flex: 1; cursor: pointer; border-radius: 6px; font-size: 0.9rem; }
         .modifier-btn.active { background-color: #1f6feb; color: white; border-color: #58a6ff; }
-        .range-controls { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #30363d; }
+
+        .range-controls { display: none; margin-top: 10px; padding-top: 20px; border-top: 1px solid #30363d; }
         .range-controls.show { display: block; }
         .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px;}
+
         #result-container { margin-top: 25px; background: #0d1117; border-radius: 8px; border: 1px solid #30363d; }
         .panel-header { background: #161b22; padding: 8px 15px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; }
-        #result { padding: 20px; font-family: monospace; color: #79c0ff; word-break: break-all; }
-        #copyBtn { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 5px 12px; border-radius: 4px; cursor: pointer; }
+        #result { padding: 20px; font-family: "SFMono-Regular", Consolas, monospace; color: #79c0ff; word-break: break-all; font-size: 1rem; }
+        #copyBtn { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
         #copyBtn.success { background: #238636; color: white; }
     </style>
 </head>
@@ -27,29 +35,34 @@
 
 <div class="container">
     <h2>Splunk Time Formatter</h2>
-    <label>Paste Timestamp (e.g., 4/19/26 11:19:21.304 PM):</label>
+    
+    <label>1. Paste Splunk Timestamp:</label>
     <input type="text" id="tsInput" placeholder="4/19/26 11:19:21.304 PM">
-    <button class="primary-btn" onclick="mainConvert()">Initialize Range Logic</button>
+    <button class="init-btn" onclick="mainConvert()">Initialize Range Logic</button>
     
     <div class="range-controls" id="rangeControls">
+        <label>2. Events Before or After:</label>
         <div class="flex-row">
             <button class="modifier-btn" id="modBefore" onclick="setModifier('before')">Before</button>
             <button class="modifier-btn" id="modAfter" onclick="setModifier('after')">After</button>
             <button class="modifier-btn active" id="modPlusMinus" onclick="setModifier('plusMinus')">+/-</button>
         </div>
+
+        <label>3. Nearby Events Offset:</label>
         <div class="flex-row">
-            <input type="number" id="offsetValue" value="5" oninput="calculateRange()">
-            <select id="offsetUnit" onchange="calculateRange()">
+            <input type="number" id="offsetValue" value="5" style="margin:0; flex: 1;">
+            <select id="offsetUnit" style="margin:0; flex: 1.5;">
                 <option value="s" selected>second(s)</option>
                 <option value="m">minute(s)</option>
                 <option value="h">hour(s)</option>
             </select>
+            <button class="apply-btn" onclick="calculateRange()">Apply</button>
         </div>
     </div>
 
     <div id="result-container" style="display:none;">
         <div class="panel-header">
-            <span>Splunk Search Terms</span>
+            <span>Query Parameters</span>
             <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
         </div>
         <div id="result"></div>
@@ -59,20 +72,15 @@
 <script>
     let currentModifier = 'plusMinus';
 
-    // 1. IMPROVED PARSING: Manually parses "4/19/26 11:19:21.304 PM"
     function parseCustomDate(str) {
         const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})\.?(\d{0,3})\s+(AM|PM)$/i;
         const match = str.trim().match(regex);
-        
-        if (!match) return new Date(str); // Fallback to native if regex fails
-
+        if (!match) return new Date(str);
         let [_, month, day, year, hours, minutes, seconds, ms, ampm] = match;
-        
         year = year.length === 2 ? "20" + year : year;
         hours = parseInt(hours);
         if (ampm.toUpperCase() === "PM" && hours < 12) hours += 12;
         if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
-
         return new Date(year, month - 1, day, hours, minutes, seconds);
     }
 
@@ -85,11 +93,13 @@
         currentModifier = mod;
         document.querySelectorAll('.modifier-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('mod' + mod.charAt(0).toUpperCase() + mod.slice(1)).classList.add('active');
-        calculateRange();
+        calculateRange(); // Keep it dynamic, but "Apply" is there for manual use
     }
 
     function mainConvert() {
-        const date = parseCustomDate(document.getElementById('tsInput').value);
+        const val = document.getElementById('tsInput').value;
+        if (!val) return;
+        const date = parseCustomDate(val);
         if (!isNaN(date.getTime())) {
             document.getElementById('rangeControls').classList.add('show');
             calculateRange();
@@ -108,15 +118,17 @@
         const offsetMs = val * mult;
 
         let start, end;
+        const baseMs = baseDate.getTime();
+
         if (currentModifier === 'before') {
-            start = new Date(baseDate.getTime() - offsetMs);
+            start = new Date(baseMs - offsetMs);
             end = baseDate;
         } else if (currentModifier === 'after') {
             start = baseDate;
-            end = new Date(baseDate.getTime() + offsetMs);
+            end = new Date(baseMs + offsetMs);
         } else {
-            start = new Date(baseDate.getTime() - offsetMs);
-            end = new Date(baseDate.getTime() + offsetMs);
+            start = new Date(baseMs - offsetMs);
+            end = new Date(baseMs + offsetMs);
         }
 
         document.getElementById('result-container').style.display = 'block';
