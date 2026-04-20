@@ -3,20 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Splunk Time Range Generator</title>
+    <title>Splunk Query Helper</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; padding: 20px; background-color: #1a1e26; color: white; }
-        .container { background: #22272e; padding: 2.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); width: 100%; max-width: 550px; }
-        input, select { width: 100%; padding: 12px; margin: 8px 0 16px 0; box-sizing: border-box; border: 1px solid #444; border-radius: 4px; background-color: #1a1e26; color: white; font-size: 1rem;}
-        .primary-btn { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.1rem; font-weight: bold; }
-        .modifier-btn { background-color: transparent; color: #40a9ff; border: 1px solid #40a9ff; padding: 8px; flex: 1; cursor: pointer; border-radius: 4px; }
-        .modifier-btn.active { background-color: #40a9ff; color: #fff; }
-        .range-controls { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #444; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; padding: 20px; background-color: #0d1117; color: white; }
+        .container { background: #161b22; padding: 2rem; border-radius: 12px; border: 1px solid #30363d; width: 100%; max-width: 550px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        
+        h2 { color: #58a6ff; margin-top: 0; }
+        label { font-size: 0.9rem; color: #8b949e; display: block; margin-bottom: 5px; }
+
+        input, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #30363d; border-radius: 6px; background-color: #0d1117; color: white; font-size: 1rem; outline: none; }
+        input:focus { border-color: #58a6ff; }
+        
+        .primary-btn { width: 100%; padding: 12px; background-color: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
+        .primary-btn:hover { background-color: #2ea043; }
+
+        .modifier-btn { background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 10px; flex: 1; cursor: pointer; border-radius: 6px; font-weight: 500; }
+        .modifier-btn.active { background-color: #1f6feb; color: white; border-color: #58a6ff; }
+
+        .range-controls { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #30363d; }
         .range-controls.show { display: block; }
         .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px;}
-        #result-container { margin-top: 20px; padding: 15px; background: #161b22; border-radius: 4px; border: 1px solid #30363d; }
-        #result { font-family: monospace; color: #58a6ff; word-break: break-all; font-size: 1.1rem; }
-        .copy-hint { font-size: 0.8rem; color: #8b949e; margin-top: 10px; display: block; }
+
+        /* Output Panel Styling */
+        #result-container { margin-top: 25px; background: #0d1117; border-radius: 8px; border: 1px solid #30363d; position: relative; overflow: hidden; }
+        .panel-header { background: #161b22; padding: 8px 15px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; }
+        .panel-header span { font-size: 0.8rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
+        
+        #result { padding: 20px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; color: #79c0ff; word-break: break-all; font-size: 1rem; min-height: 1.2rem; }
+        
+        #copyBtn { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: 0.2s; }
+        #copyBtn:hover { background: #30363d; color: white; }
+        #copyBtn.success { background: #238636; color: white; border-color: #238636; }
     </style>
 </head>
 <body>
@@ -24,12 +41,12 @@
 <div class="container">
     <h2>Splunk Time Formatter</h2>
     
-    <label>1. Paste Timestamp from Splunk Event:</label>
+    <label>Paste Timestamp from Event:</label>
     <input type="text" id="tsInput" placeholder="4/19/26 11:19:21.304 PM">
-    <button class="primary-btn" onclick="mainConvert()">Initialize</button>
+    <button class="primary-btn" onclick="mainConvert()" style="background-color: #1f6feb;">Initialize Range Logic</button>
     
     <div class="range-controls" id="rangeControls">
-        <h4>2. Define Range for Query</h4>
+        <label>Select Range Type:</label>
         <div class="flex-row">
             <button class="modifier-btn" id="modBefore" onclick="setModifier('before')">Before</button>
             <button class="modifier-btn" id="modAfter" onclick="setModifier('after')">After</button>
@@ -37,19 +54,22 @@
         </div>
 
         <div class="flex-row">
-            <input type="number" id="offsetValue" value="5">
-            <select id="offsetUnit">
+            <input type="number" id="offsetValue" value="5" style="margin:0;">
+            <select id="offsetUnit" style="margin:0;">
                 <option value="s" selected>second(s)</option>
                 <option value="m">minute(s)</option>
                 <option value="h">hour(s)</option>
             </select>
         </div>
         
-        <button class="primary-btn" style="background-color: #238636;" onclick="calculateRange()">Generate Splunk Range</button>
+        <button class="primary-btn" onclick="calculateRange()">Update Query String</button>
     </div>
 
     <div id="result-container" style="display:none;">
-        <span class="copy-hint">Splunk Search Terms:</span>
+        <div class="panel-header">
+            <span>Splunk Search Terms</span>
+            <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
+        </div>
         <div id="result"></div>
     </div>
 </div>
@@ -73,6 +93,7 @@
         currentModifier = mod;
         document.querySelectorAll('.modifier-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById('mod' + mod.charAt(0).toUpperCase() + mod.slice(1)).classList.add('active');
+        calculateRange(); // Auto-calculate on change
     }
 
     function mainConvert() {
@@ -81,7 +102,7 @@
             document.getElementById('rangeControls').classList.add('show');
             calculateRange();
         } else {
-            alert("Please enter a valid timestamp first.");
+            alert("Invalid date format. Please use: M/D/YY HH:MM:SS.ms AM/PM");
         }
     }
 
@@ -93,7 +114,6 @@
         
         let offsetMs = offsetValue * (unit === 's' ? UNIT_S : unit === 'm' ? UNIT_M : UNIT_H);
         let earliestDate, latestDate;
-
         const baseMs = baseDate.getTime();
 
         if (currentModifier === 'before') {
@@ -107,11 +127,28 @@
             latestDate = new Date(baseMs + offsetMs);
         }
 
-        const eStr = formatSplunkDate(earliestDate);
-        const lStr = formatSplunkDate(latestDate);
-
+        const query = `earliest=${formatSplunkDate(earliestDate)} latest=${formatSplunkDate(latestDate)}`;
+        
         document.getElementById('result-container').style.display = 'block';
-        document.getElementById('result').innerText = `earliest=${eStr} latest=${lStr}`;
+        document.getElementById('result').innerText = query;
+    }
+
+    async function copyToClipboard() {
+        const text = document.getElementById('result').innerText;
+        const btn = document.getElementById('copyBtn');
+        
+        try {
+            await navigator.clipboard.writeText(text);
+            btn.innerText = "Copied!";
+            btn.classList.add('success');
+            
+            setTimeout(() => {
+                btn.innerText = "Copy";
+                btn.classList.remove('success');
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+        }
     }
 </script>
 
