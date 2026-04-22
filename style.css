@@ -155,3 +155,8 @@ input:focus {
     background: #238636;
     color: white;
 }
+
+#tsInput {
+    width: 100%;
+    box-sizing: border-box; /* Ensures padding doesn't push the box outside the container */
+}

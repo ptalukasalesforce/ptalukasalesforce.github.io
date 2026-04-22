@@ -14,7 +14,8 @@
         <h2>Splunk Time Formatter</h2>
 
         <label>1. Paste Splunk Timestamp:</label>
-        <input type="text" id="tsInput" placeholder="4/19/26 11:19:21.304 PM">
+        <input type="text" id="tsInput" placeholder="4/19/26 11:19:21 PM or 23:19:21"
+            title="Accepts both 12-hour (AM/PM) and 24-hour formats">
         <button class="init-btn" onclick="mainConvert()">Initialize Range Logic</button>
 
         <div class="range-controls" id="rangeControls">
@@ -46,4 +47,5 @@
         </div>
     </div>
 </body>
+
 </html>

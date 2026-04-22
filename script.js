@@ -11,9 +11,10 @@ function pad(num) {
 }
 
 function parseTimestamp(input) {
-    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?\s*(AM|PM)$/i;
+    // Updated regex: (AM|PM) is now optional with '?' and wrapped in a non-capturing group
+    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(?:\s*(AM|PM))?$/i;
     const match = input.trim().match(regex);
-
+    
     if (!match) return null;
 
     let [, month, day, year, hour, minute, second, millisecond = "0", ampm] = match;
@@ -28,9 +29,12 @@ function parseTimestamp(input) {
 
     if (year < 100) year += 2000;
 
-    ampm = ampm.toUpperCase();
-    if (ampm === "PM" && hour !== 12) hour += 12;
-    if (ampm === "AM" && hour === 12) hour = 0;
+    // Only apply AM/PM logic if the suffix actually exists
+    if (ampm) {
+        ampm = ampm.toUpperCase();
+        if (ampm === "PM" && hour !== 12) hour += 12;
+        if (ampm === "AM" && hour === 12) hour = 0;
+    }
 
     const date = new Date(year, month - 1, day, hour, minute, second, millisecond);
     return isNaN(date.getTime()) ? null : date;
